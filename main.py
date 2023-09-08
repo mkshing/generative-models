@@ -132,7 +132,7 @@ def get_parser(**parser_kwargs):
     parser.add_argument(
         "--projectname",
         type=str,
-        default="stablediffusion",
+        default="sgm",
     )
     parser.add_argument(
         "-l",
@@ -176,7 +176,7 @@ def get_parser(**parser_kwargs):
         type=str2bool,
         nargs="?",
         const=True,
-        default=False,  # TODO: later default to True
+        default=True,  # TODO: later default to True
         help="log to wandb",
     )
     parser.add_argument(
@@ -492,6 +492,7 @@ def init_wandb(save_dir, opt, config, group_name, name_str):
             settings=wandb.Settings(code_dir="./sgm"),
             group=group_name,
             name=name_str,
+            entity="x0"
         )
 
 

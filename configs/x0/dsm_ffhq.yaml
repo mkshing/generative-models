@@ -18,15 +18,16 @@ model:
 
     network_config:
       target: sgm.modules.diffusionmodules.openaimodel.UNetModel
+      # reference: https://github.com/openai/guided-diffusion#classifier-guidance
       params:
         use_checkpoint: True
         in_channels: 3
         out_channels: 3
-        model_channels: 32
+        model_channels: 256
         attention_resolutions: []
-        num_res_blocks: 4
-        channel_mult: [1, 2, 2]
-        num_head_channels: 32
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4, 4 ]
+        num_head_channels: 64
 
     first_stage_config:
       target: sgm.models.autoencoder.IdentityFirstStage
@@ -49,7 +50,7 @@ data:
   target: sgm.data.image.ImageLoader
   params:
     image_dir: "/fsx/proj-jp-stable-diffusion/data/FFHQ"
-    batch_size: 32
+    batch_size: 8
     num_workers: 10
     transforms:
       - target: torchvision.transforms.Resize
@@ -62,13 +63,7 @@ data:
 lightning:
   modelcheckpoint:
     params:
-      every_n_train_steps: 1000
-
-  callbacks:
-    metrics_over_trainsteps_checkpoint:
-      params:
-        every_n_train_steps: 5000
-
+      every_n_train_steps: 10000
     image_logger:
       target: main.ImageLogger
       params:
@@ -86,5 +81,5 @@ lightning:
     devices: 0,
     benchmark: True
     num_sanity_val_steps: 0
-    accumulate_grad_batches: 1
-    max_epochs: 100
+    accumulate_grad_batches: 4
+    max_epochs: 1000
