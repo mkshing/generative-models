@@ -3,6 +3,7 @@ import datetime
 import glob
 import inspect
 import os
+import re
 import sys
 from inspect import Parameter
 from typing import Union
@@ -478,13 +479,28 @@ class ImageLogger(Callback):
 
 
 @rank_zero_only
-def init_wandb(save_dir, opt, config, group_name, name_str):
+def init_wandb(
+    save_dir, opt, config, group_name, name_str, wandb_id: str = None
+) -> str:
     print(f"setting WANDB_DIR to {save_dir}")
     os.makedirs(save_dir, exist_ok=True)
-
     os.environ["WANDB_DIR"] = save_dir
+
+    if wandb_id is not None:
+        wandb_id = wandb_id
+        print(f"Resuming wandb run {wandb_id}")
+    else:
+        wandb_id = wandb.util.generate_id()
+        print(f"Starting new wandb run {wandb_id}")
+
     if opt.debug:
-        wandb.init(project=opt.projectname, mode="offline", group=group_name)
+        wandb.init(
+            project=opt.projectname,
+            mode="offline",
+            group=group_name,
+            id=wandb_id,
+            resume="allow",
+        )
     else:
         wandb.init(
             project=opt.projectname,
@@ -492,8 +508,10 @@ def init_wandb(save_dir, opt, config, group_name, name_str):
             settings=wandb.Settings(code_dir="./sgm"),
             group=group_name,
             name=name_str,
-            entity="x0"
+            id=wandb_id,
+            resume="allow",
         )
+    return wandb_id
 
 
 if __name__ == "__main__":
@@ -689,11 +707,60 @@ if __name__ == "__main__":
         }
         default_logger_cfg = default_logger_cfgs["wandb" if opt.wandb else "csv"]
         if opt.wandb:
-            # TODO change once leaving "swiffer" config directory
-            try:
-                group_name = nowname.split(now)[-1].split("-")[1]
-            except:
-                group_name = nowname
+            # retrieve wandb_id from wandb latest run
+            wandb_id = None
+            group_name = ""  # e.g. still needs to be set (different from None)
+            if opt.resume and opt.resume_wandb:
+                wandb_files = glob.glob(
+                    os.path.join(logdir, "wandb", "latest-run", "run-*.wandb")
+                )
+                if len(wandb_files) > 0:
+                    assert (
+                        len(wandb_files) == 1
+                    ), f"Found multiple wandb files in {logdir}"
+                    wandb_id = (
+                        wandb_files[0].split("/")[-1].split(".")[0].split("run-")[-1]
+                    )
+                    print(f"Resuming from wandb id {wandb_id}")
+
+                    # group name is known by wandb
+                    group_name = None
+                else:
+                    print(f"No wandb experiment found in {logdir}")
+                    # -> still need to set group_name
+
+            if opt.group_name is not None:
+                group_name = opt.group_name
+            elif group_name == "":
+                if opt.base:
+                    ignore_base = "configs" + os.sep
+                    path = opt.base[0]
+                    start_idx = path.find(ignore_base)
+                    if start_idx != -1:
+                        path = path[start_idx + len(ignore_base) :]
+                    path_dirs = path.split(os.sep)
+                else:
+                    # case resume but not wandb-resume, avoid if possible
+                    print(
+                        "No base config given, assuming current name only "
+                        "uses '-' for directories for consiting grouping"
+                    )
+                    # nowname may start with year `yyyy-mm-ddThh-mm-ss_`
+                    # remove that part if applicable
+                    path_dirs = re.sub(
+                        r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}_",
+                        "",
+                        nowname,
+                    ).split("-")
+                if len(path_dirs) > 1:
+                    # don't group the config name itself if possible
+                    path_dirs = path_dirs[:-1]
+                if opt.group_depth > 0:
+                    path_dirs = path_dirs[: opt.group_depth]
+                group_name = "-".join(path_dirs)
+
+                print(f"Logging to wandb group: {group_name}")
+
             default_logger_cfg["params"]["group"] = group_name
             init_wandb(
                 os.path.join(os.getcwd(), logdir),
@@ -701,6 +768,7 @@ if __name__ == "__main__":
                 group_name=group_name,
                 config=config,
                 name_str=nowname,
+                wandb_id=wandb_id,
             )
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
