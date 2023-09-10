@@ -177,7 +177,7 @@ def get_parser(**parser_kwargs):
         type=str2bool,
         nargs="?",
         const=True,
-        default=True,  # TODO: later default to True
+        default=True,
         help="log to wandb",
     )
     parser.add_argument(
@@ -185,7 +185,7 @@ def get_parser(**parser_kwargs):
         type=str2bool,
         nargs="?",
         const=True,
-        default=False,  # TODO: later default to True
+        default=True,
         help="log to wandb",
     )
     if version.parse(torch.__version__) >= version.parse("2.0.0"):
