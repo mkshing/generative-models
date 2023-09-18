@@ -79,6 +79,14 @@ def get_parser(**parser_kwargs):
         help="resume from logdir or checkpoint in logdir",
     )
     parser.add_argument(
+        "--resume_wandb",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=True,
+        help="resume wandb",
+    )
+    parser.add_argument(
         "-b",
         "--base",
         nargs="*",
@@ -179,6 +187,18 @@ def get_parser(**parser_kwargs):
         const=True,
         default=True,
         help="log to wandb",
+    )
+    parser.add_argument(
+        "--group_depth",
+        type=int,
+        default=1,
+        help="Group wanbd to the first n (0 for all) directories of your base config",
+    )
+    parser.add_argument(
+        "--group_name",
+        type=str,
+        default=None,
+        help="Group wanbd to the given name, overwrite default",
     )
     parser.add_argument(
         "--no_base_name",
@@ -510,6 +530,7 @@ def init_wandb(
             name=name_str,
             id=wandb_id,
             resume="allow",
+            entity="x0"
         )
     return wandb_id
 
@@ -783,7 +804,8 @@ if __name__ == "__main__":
             "target": "pytorch_lightning.callbacks.ModelCheckpoint",
             "params": {
                 "dirpath": ckptdir,
-                "filename": "{epoch:06}",
+                # "filename": "{epoch:06}",
+                "filename": "{epoch:06}-{step:09}",
                 "verbose": True,
                 "save_last": True,
             },
