@@ -205,7 +205,7 @@ def get_parser(**parser_kwargs):
         type=str2bool,
         nargs="?",
         const=True,
-        default=True,
+        default=False,
         help="log to wandb",
     )
     if version.parse(torch.__version__) >= version.parse("2.0.0"):
